@@ -36,7 +36,7 @@ def record_padding(stream: Union[io.BufferedReader, io.BytesIO]) -> numpy.ndarra
     Essentially reads enough bytes so the stream position for the
     record finishes at a multiple of 4 bytes.
     """
-    pad = numpy.fromfile(stream, "B", count=stream.tell() % 4)
+    pad = stream.read(stream.tell() % 4)
     return pad
 
 
@@ -72,7 +72,7 @@ def file_info(stream: Union[io.BufferedReader, io.BytesIO], file_size: Optional[
         datasize[RecordTypes(record_id)].append(data_size)
         checksum_flag[RecordTypes(record_id)].append(flag)
 
-        _ = numpy.fromfile(stream, f"S{data_size}", count=1)
+        _ = stream.read(data_size)
         _ = record_padding(stream)
 
     stream.seek(current_pos)
@@ -92,8 +92,9 @@ def file_info(stream: Union[io.BufferedReader, io.BytesIO], file_size: Optional[
 
 def read_record_info(stream: Union[io.BufferedReader, io.BytesIO]) -> Tuple[int, int, bool]:
     """Return the header information for the current record."""
-    data_size = numpy.fromfile(stream, ">u4", count=1)[0]
-    record_identifier = numpy.fromfile(stream, ">i4", count=1)[0]
+    blob = stream.read(8)
+    data_size = numpy.frombuffer(blob, ">u4", count=1)[0]
+    record_identifier = numpy.frombuffer(blob[4:], ">i4", count=1)[0]
     checksum_flag = bool(record_identifier & CHECKSUM_BIT)
 
     return data_size, record_identifier, checksum_flag
@@ -101,10 +102,16 @@ def read_record_info(stream: Union[io.BufferedReader, io.BytesIO]) -> Tuple[int,
 
 def read_header(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool) -> str:
     """Read the GSF header occuring at the start of the file."""
-    if checksum_flag:
-        _ = numpy.fromfile(stream, ">i4", count=1)[0]
+    blob = stream.read(data_size)
+    idx = 0
 
-    data = numpy.fromfile(stream, f"S{data_size}", count=1)[0]
+    if checksum_flag:
+        # _ = numpy.fromfile(stream, ">i4", count=1)[0]
+        _ = numpy.frombuffer(blob, ">i4", count=1)[0]
+        idx += 4
+
+    # TODO; if checksum is read, is data_size - 4 ??
+    data = numpy.frombuffer(blob[idx:], f"S{data_size}", count=1)[0]
 
     _ = record_padding(stream)
 
@@ -157,7 +164,8 @@ def read_processing_parameters(stream: Union[io.BufferedReader, io.BytesIO], dat
     """
     idx = 0
 
-    blob = stream.readline(data_size)
+    # blob = stream.readline(data_size)
+    blob = stream.read(data_size)
 
     if checksum_flag:
         _ = numpy.frombuffer(blob, ">i4", count=1)[0]
@@ -170,7 +178,7 @@ def read_processing_parameters(stream: Union[io.BufferedReader, io.BytesIO], dat
             ("num_params", ">i2"),
         ]
     )
-    data = numpy.frombuffer(blob, dtype, count=1)
+    data = numpy.frombuffer(blob[idx:], dtype, count=1)
     time_seconds = int(data["time_seconds"][0])
     time_nano_seconds = int(data["time_nano_seconds"][0])
 
@@ -272,6 +280,9 @@ def read_svp(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag:
     It was mentioned that the datetime could be matched (or closely matched)
     with a ping, and the lon/lat could be taken from the ping.
     """
+    buffer = stream.read(data_size)
+    idx = 0
+
     dtype = numpy.dtype(
         [
             ("obs_seconds", ">u4"),
@@ -284,10 +295,14 @@ def read_svp(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag:
         ]
     )
 
-    blob = numpy.fromfile(stream, dtype, count=1)
+    # blob = numpy.fromfile(stream, dtype, count=1)
+    blob = numpy.frombuffer(buffer, dtype, count=1)
     num_points = blob["num_points"][0]
 
-    svp = numpy.fromfile(stream, ">u4", count=2 * num_points) / 100
+    idx += 28
+
+    # svp = numpy.fromfile(stream, ">u4", count=2 * num_points) / 100
+    svp = numpy.frombuffer(buffer[idx:], ">u4", count=2 * num_points) / 100
     svp = svp.reshape((num_points, 2))
 
     data = {
@@ -311,8 +326,8 @@ def read_svp(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag:
             "latitude": data["latitude"]*num_points,
             "depth": data["depth"]*num_points,
             "sound_velocity": data["sound_velocity"]*num_points,
-            "observation_timestamp": data["observation_time"]*num_points,
-            "applied_timestamp": data["applied_time"]*num_points,
+            "observation_timestamp": [data["observation_time"]]*num_points,
+            "applied_timestamp": [data["applied_time"]]*num_points,
         }
     )
 
@@ -320,6 +335,9 @@ def read_svp(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag:
 
 
 def read_swath_bathymetry_summary(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool) -> SwathBathymetrySummary:
+    buffer = stream.read(data_size)
+    idx = 0
+
     dtype = numpy.dtype(
         [
             ("time_first_ping_seconds", ">i4"),
@@ -335,7 +353,8 @@ def read_swath_bathymetry_summary(stream: Union[io.BufferedReader, io.BytesIO], 
         ]
     )
 
-    blob = numpy.fromfile(stream, dtype, count=1)
+    # blob = numpy.fromfile(stream, dtype, count=1)
+    blob = numpy.frombuffer(buffer, dtype, count=1)
 
     data = {
         "timestamp_first_ping": create_datetime(
@@ -371,7 +390,8 @@ def read_comment(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, f
             ("comment_length", ">i4"),
         ]
     )
-    blob = stream.readline(data_size)
+    # blob = stream.readline(data_size)
+    blob = stream.read(data_size)
     decoded = numpy.frombuffer(blob, dtype, count=1)
 
     timestamp = create_datetime(
@@ -544,7 +564,8 @@ def _ping_beam_subrecord(ping_header: PingHeader, buffer: str, scale_factors: Di
 def read_bathymetry_ping(stream, data_size, flag, scale_factors=None) -> Tuple[PingHeader, Dict[BeamSubRecordTypes, numpy.ndarray], pandas.DataFrame]:
     """Read and digest a bathymetry ping record."""
     idx = 0
-    blob = numpy.fromfile(stream, f"S{data_size}", count=1)[0]
+    # blob = numpy.fromfile(stream, f"S{data_size}", count=1)[0]
+    blob = stream.read(data_size)
 
     dtype = numpy.dtype(
         [
