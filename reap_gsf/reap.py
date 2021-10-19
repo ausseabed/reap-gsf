@@ -358,7 +358,6 @@ def read_swath_bathymetry_summary(
     stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
 ) -> SwathBathymetrySummary:
     buffer = stream.read(data_size)
-    idx = 0
 
     dtype = numpy.dtype(
         [
@@ -466,7 +465,7 @@ def _beams_longitude_latitude(
         * lat_m_sf = A - B * cos(2 * lat) + C  * cos(4 * lat) - D * cos(6 * lat)
         * lon_m_sf = E * cos(lat) - F * cos(3 * lat) + G * cos(5 * lat)
     """
-    # see https://math.stackexchange.com/questions/389942/why-is-it-necessary-to-use-sin-or-cos-to-determine-heading-dead-reckoning
+    # see https://math.stackexchange.com/questions/389942/why-is-it-necessary-to-use-sin-or-cos-to-determine-heading-dead-reckoning # noqa: E501
     lat_radians = math.radians(ping_header.latitude)
 
     coef_a = WGS84Coefficients.A.value

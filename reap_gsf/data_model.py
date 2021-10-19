@@ -202,9 +202,9 @@ class Attitude:
             rec = file_record.record(i)
             try:
                 dataframe = dataframe.append(rec.read(stream), ignore_index=True)
-            except ValueError as e:
-                print(rec)
-                print(i)
+            except ValueError as err:
+                msg = f"record: {rec}, iteration: {i}"
+                print(msg, err)
                 raise Exception
 
         dataframe.reset_index(drop=True, inplace=True)

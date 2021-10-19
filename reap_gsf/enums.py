@@ -1,6 +1,5 @@
 from enum import Enum
 
-# from .reap import read_header, read_bathymetry_ping, read_svp, read_processing_parameters, _not_implemented, read_comment, read_swath_bathymetry_summary, read_attitude
 from reap_gsf import reap
 
 
@@ -119,10 +118,10 @@ class BeamSubRecordTypes(Enum):
             BeamSubRecordTypes.INCIDENT_BEAM_ADJ: ">i",
             BeamSubRecordTypes.SYSTEM_CLEANING: ">i",
             BeamSubRecordTypes.DOPPLER_CORRECTION: ">i",
-            BeamSubRecordTypes.SONAR_VERT_UNCERNTAINTY: ">i",  # dtype not defined in 3.09 pdf
-            BeamSubRecordTypes.SONAR_HORZ_UNCERTAINTY: ">i",  # dtype and record not defined in 3.09 pdf
-            BeamSubRecordTypes.DETECTION_WINDOW: ">i",  # dtype and record not defined in 3.09 pdf
-            BeamSubRecordTypes.MEAN_ABS_COEF: ">i",  # dtype and record not defined in 3.09 pdf
+            BeamSubRecordTypes.SONAR_VERT_UNCERNTAINTY: ">i",  # dtype not defined in 3.09 pdf # noqa: E501
+            BeamSubRecordTypes.SONAR_HORZ_UNCERTAINTY: ">i",  # dtype and record not defined in 3.09 pdf # noqa: E501
+            BeamSubRecordTypes.DETECTION_WINDOW: ">i",  # dtype and record not defined in 3.09 pdf # noqa: E501
+            BeamSubRecordTypes.MEAN_ABS_COEF: ">i",  # dtype and record not defined in 3.09 pdf # noqa: E501
         }
         return dtype_map.get(self)
 
