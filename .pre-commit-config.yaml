@@ -7,6 +7,6 @@ repos:
       # args: [--refactor, --py39-plus]
       types_or: [python, markdown, rst]
 - repo: https://gitlab.com/pycqa/flake8
-  rev: ''  # pick a git hash / tag to point to
+  rev: 3.9.2
   hooks:
     - id: flake8
