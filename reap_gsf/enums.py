@@ -45,7 +45,7 @@ class RecordTypes(Enum):
             RecordTypes.GSF_PROCESSING_PARAMETERS: reap.read_processing_parameters,
             RecordTypes.GSF_SENSOR_PARAMETERS: reap._not_implemented,
             RecordTypes.GSF_COMMENT: reap.read_comment,
-            RecordTypes.GSF_HISTORY: reap._not_implemented,
+            RecordTypes.GSF_HISTORY: reap.read_history,
             RecordTypes.GSF_NAVIGATION_ERROR: reap._not_implemented,
             RecordTypes.GSF_SWATH_BATHY_SUMMARY: reap.read_swath_bathymetry_summary,
             RecordTypes.GSF_SINGLE_BEAM_PING: reap._not_implemented,
