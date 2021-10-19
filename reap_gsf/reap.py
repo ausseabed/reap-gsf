@@ -1,14 +1,23 @@
 import datetime
 import io
-from pathlib import Path
 import math
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import attr
 import numpy
-from typing import Any, Dict, List, Union, Tuple, Optional
 import pandas
 
-from .data_model import FileRecordIndex, SwathBathymetrySummary, Comment, PingTimestampBounds, PingSpatialBounds, PingHeader, History
-from .enums import RecordTypes, BeamSubRecordTypes, WGS84Coefficients
+from .data_model import (
+    Comment,
+    FileRecordIndex,
+    History,
+    PingHeader,
+    PingSpatialBounds,
+    PingTimestampBounds,
+    SwathBathymetrySummary,
+)
+from .enums import BeamSubRecordTypes, RecordTypes, WGS84Coefficients
 
 CHECKSUM_BIT = 0x80000000
 NANO_SECONDS_SF = 1e-9
@@ -26,7 +35,9 @@ def create_datetime(seconds: int, nano_seconds: int) -> datetime.datetime:
     The GSF files store time as a combination of seconds and nano
     seconds past POSIX time.
     """
-    timestamp = datetime.datetime.fromtimestamp(seconds + NANO_SECONDS_SF * nano_seconds, tz=datetime.timezone.utc)
+    timestamp = datetime.datetime.fromtimestamp(
+        seconds + NANO_SECONDS_SF * nano_seconds, tz=datetime.timezone.utc
+    )
     return timestamp
 
 
@@ -40,7 +51,9 @@ def record_padding(stream: Union[io.BufferedReader, io.BytesIO]) -> numpy.ndarra
     return pad
 
 
-def file_info(stream: Union[io.BufferedReader, io.BytesIO], file_size: Optional[int] = None) -> List[FileRecordIndex]:
+def file_info(
+    stream: Union[io.BufferedReader, io.BytesIO], file_size: Optional[int] = None
+) -> List[FileRecordIndex]:
     """
     Returns a list of FileRecordIndex objects for each high level record
     type in .enums.RecordTypes.
@@ -82,7 +95,7 @@ def file_info(stream: Union[io.BufferedReader, io.BytesIO], file_size: Optional[
             record_type=rtype,
             data_size=datasize[rtype],
             checksum_flag=checksum_flag[rtype],
-            indices=indices[rtype]
+            indices=indices[rtype],
         )
         for rtype in RecordTypes
     ]
@@ -90,7 +103,9 @@ def file_info(stream: Union[io.BufferedReader, io.BytesIO], file_size: Optional[
     return r_index
 
 
-def read_record_info(stream: Union[io.BufferedReader, io.BytesIO]) -> Tuple[int, int, bool]:
+def read_record_info(
+    stream: Union[io.BufferedReader, io.BytesIO]
+) -> Tuple[int, int, bool]:
     """Return the header information for the current record."""
     blob = stream.read(8)
     data_size = numpy.frombuffer(blob, ">u4", count=1)[0]
@@ -100,7 +115,9 @@ def read_record_info(stream: Union[io.BufferedReader, io.BytesIO]) -> Tuple[int,
     return data_size, record_identifier, checksum_flag
 
 
-def read_header(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool) -> str:
+def read_header(
+    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool
+) -> str:
     """Read the GSF header occuring at the start of the file."""
     blob = stream.read(data_size)
     idx = 0
@@ -136,7 +153,7 @@ def _proc_param_parser(value: Union[str, datetime.datetime]) -> Any:
             parsed = numpy.array(array, dtype="float").tolist()
         else:
             # should be dealing with an array of "UNKNWN" or "UNKNOWN"
-            parsed = ["unknown"]*len(array)
+            parsed = ["unknown"] * len(array)
     elif "." in value:  # assumption on period being a decimal point
         parsed = float(value)
     elif value.lower() in booleans:
@@ -157,7 +174,9 @@ def _standardise_proc_param_keys(key: str) -> str:
     return key.lower().replace(" ", "_")
 
 
-def read_processing_parameters(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool) -> Dict[str, Any]:
+def read_processing_parameters(
+    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool
+) -> Dict[str, Any]:
     """
     Read the record containing the parameters used during the data
     processing phase.
@@ -194,10 +213,11 @@ def read_processing_parameters(stream: Union[io.BufferedReader, io.BytesIO], dat
         key, value = data.decode("utf-8").strip().split("=")
 
         if key == "REFERENCE TIME":
-            value = datetime.datetime.strptime(value, "%Y/%j %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+            value = datetime.datetime.strptime(value, "%Y/%j %H:%M:%S").replace(
+                tzinfo=datetime.timezone.utc
+            )
             params["processed_datetime"] = value + datetime.timedelta(
-                seconds=time_seconds,
-                milliseconds=time_nano_seconds * 1e-6
+                seconds=time_seconds, milliseconds=time_nano_seconds * 1e-6
             )
             continue  # no need to include reference_time
 
@@ -208,7 +228,9 @@ def read_processing_parameters(stream: Union[io.BufferedReader, io.BytesIO], dat
     return params
 
 
-def read_attitude(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool) -> pandas.DataFrame:
+def read_attitude(
+    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool
+) -> pandas.DataFrame:
     """Read an attitude record."""
     # using stream.readline() would stop at the first new line
     # using stream.readlines() can read more than data_size
@@ -251,9 +273,7 @@ def read_attitude(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, 
         idx += 10
 
         data["timestamp"].append(
-            acq_time + datetime.timedelta(
-                seconds=numpy_blob["timestamp"] / 1000
-            )
+            acq_time + datetime.timedelta(seconds=numpy_blob["timestamp"] / 1000)
         )
         data["pitch"].append(numpy_blob["pitch"] / 100)
         data["roll"].append(numpy_blob["roll"] / 100)
@@ -273,7 +293,9 @@ def read_attitude(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, 
     return dataframe
 
 
-def read_svp(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool) -> pandas.DataFrame:
+def read_svp(
+    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+) -> pandas.DataFrame:
     """
     Read a sound velocity profile record.
     In the provided samples, the longitude and latitude were both zero.
@@ -313,28 +335,28 @@ def read_svp(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag:
         "observation_time": create_datetime(
             blob["obs_seconds"][0], blob["obs_nano"][0]
         ),
-        "applied_time": create_datetime(
-            blob["app_seconds"][0], blob["app_nano"][0]
-        ),
+        "applied_time": create_datetime(blob["app_seconds"][0], blob["app_nano"][0]),
     }
 
     _ = record_padding(stream)
 
     dataframe = pandas.DataFrame(
         {
-            "longitude": data["longitude"]*num_points,
-            "latitude": data["latitude"]*num_points,
-            "depth": data["depth"]*num_points,
-            "sound_velocity": data["sound_velocity"]*num_points,
-            "observation_timestamp": [data["observation_time"]]*num_points,
-            "applied_timestamp": [data["applied_time"]]*num_points,
+            "longitude": data["longitude"] * num_points,
+            "latitude": data["latitude"] * num_points,
+            "depth": data["depth"] * num_points,
+            "sound_velocity": data["sound_velocity"] * num_points,
+            "observation_timestamp": [data["observation_time"]] * num_points,
+            "applied_timestamp": [data["applied_time"]] * num_points,
         }
     )
 
     return dataframe
 
 
-def read_swath_bathymetry_summary(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool) -> SwathBathymetrySummary:
+def read_swath_bathymetry_summary(
+    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+) -> SwathBathymetrySummary:
     buffer = stream.read(data_size)
     idx = 0
 
@@ -358,12 +380,10 @@ def read_swath_bathymetry_summary(stream: Union[io.BufferedReader, io.BytesIO], 
 
     data = {
         "timestamp_first_ping": create_datetime(
-            blob["time_first_ping_seconds"][0],
-            blob["time_first_ping_nano_seconds"][0]
+            blob["time_first_ping_seconds"][0], blob["time_first_ping_nano_seconds"][0]
         ),
         "timestamp_last_ping": create_datetime(
-            blob["time_last_ping_seconds"][0],
-            blob["time_last_ping_nano_seconds"][0]
+            blob["time_last_ping_seconds"][0], blob["time_last_ping_nano_seconds"][0]
         ),
         "min_latitude": blob["min_latitude"][0] / 10_000_000,
         "min_longitude": blob["min_longitude"][0] / 10_000_000,
@@ -381,7 +401,9 @@ def read_swath_bathymetry_summary(stream: Union[io.BufferedReader, io.BytesIO], 
     return SwathBathymetrySummary(time_bounds, spatial_bounds)
 
 
-def read_comment(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool) -> Comment:
+def read_comment(
+    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+) -> Comment:
     """Read a comment record."""
     dtype = numpy.dtype(
         [
@@ -395,8 +417,7 @@ def read_comment(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, f
     decoded = numpy.frombuffer(blob, dtype, count=1)
 
     timestamp = create_datetime(
-        decoded["time_comment_seconds"][0],
-        decoded["time_comment_nano_seconds"][0]
+        decoded["time_comment_seconds"][0], decoded["time_comment_nano_seconds"][0]
     )
     the_comment = blob[12:].decode().strip().rstrip("\x00")
 
@@ -434,7 +455,9 @@ def _correct_ping_header(data):
     return ping_header
 
 
-def _beams_longitude_latitude(ping_header: PingHeader, along_track: numpy.ndarray, across_track: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]:
+def _beams_longitude_latitude(
+    ping_header: PingHeader, along_track: numpy.ndarray, across_track: numpy.ndarray
+) -> Tuple[numpy.ndarray, numpy.ndarray]:
     """
     Calculate the longitude and latitude for each beam.
 
@@ -454,19 +477,38 @@ def _beams_longitude_latitude(ping_header: PingHeader, along_track: numpy.ndarra
     coef_f = WGS84Coefficients.F.value
     coef_g = WGS84Coefficients.G.value
 
-    lat_mtr_sf = coef_a - coef_b * math.cos(2 * lat_radians) + coef_c * math.cos(4 * lat_radians) - coef_d * math.cos(6 * lat_radians)
-    lon_mtr_sf = coef_e * math.cos(lat_radians) - coef_f * math.cos(3 * lat_radians) + coef_g * math.cos(5 * lat_radians)
+    lat_mtr_sf = (
+        coef_a
+        - coef_b * math.cos(2 * lat_radians)
+        + coef_c * math.cos(4 * lat_radians)
+        - coef_d * math.cos(6 * lat_radians)
+    )
+    lon_mtr_sf = (
+        coef_e * math.cos(lat_radians)
+        - coef_f * math.cos(3 * lat_radians)
+        + coef_g * math.cos(5 * lat_radians)
+    )
 
     delta_x = math.sin(math.radians(ping_header.heading))
     delta_y = math.cos(math.radians(ping_header.heading))
 
-    lon2 = ping_header.longitude + delta_y / lon_mtr_sf * across_track + delta_x / lon_mtr_sf * along_track
-    lat2 = ping_header.latitude - delta_x / lat_mtr_sf * across_track + delta_y / lat_mtr_sf * along_track
+    lon2 = (
+        ping_header.longitude
+        + delta_y / lon_mtr_sf * across_track
+        + delta_x / lon_mtr_sf * along_track
+    )
+    lat2 = (
+        ping_header.latitude
+        - delta_x / lat_mtr_sf * across_track
+        + delta_y / lat_mtr_sf * along_track
+    )
 
     return lon2, lat2
 
 
-def _ping_dataframe(ping_header: PingHeader, subrecords: Dict[BeamSubRecordTypes, numpy.ndarray]) -> pandas.DataFrame:
+def _ping_dataframe(
+    ping_header: PingHeader, subrecords: Dict[BeamSubRecordTypes, numpy.ndarray]
+) -> pandas.DataFrame:
     """Construct the dataframe for the given ping."""
     # convert beam arrays to point cloud structure (i.e. generate coords for every beam)
     # longitude, latitude = _beams_longitude_latitude(
@@ -477,7 +519,7 @@ def _ping_dataframe(ping_header: PingHeader, subrecords: Dict[BeamSubRecordTypes
     longitude, latitude = _beams_longitude_latitude(
         ping_header,
         subrecords[BeamSubRecordTypes.ALONG_TRACK],
-        subrecords[BeamSubRecordTypes.ACROSS_TRACK]
+        subrecords[BeamSubRecordTypes.ACROSS_TRACK],
     )
 
     dataframe = pandas.DataFrame({k.name.lower(): v for k, v in subrecords.items()})
@@ -516,7 +558,9 @@ def _ping_dataframe(ping_header: PingHeader, subrecords: Dict[BeamSubRecordTypes
     return dataframe
 
 
-def _ping_scale_factors(num_factors: int, buffer: str, idx: int) -> Tuple[Dict[BeamSubRecordTypes, numpy.ndarray], int]:
+def _ping_scale_factors(
+    num_factors: int, buffer: str, idx: int
+) -> Tuple[Dict[BeamSubRecordTypes, numpy.ndarray], int]:
     """Small util for populating the ping scale factors."""
     scale_factors: Dict[BeamSubRecordTypes, numpy.ndarray] = {}
 
@@ -531,7 +575,14 @@ def _ping_scale_factors(num_factors: int, buffer: str, idx: int) -> Tuple[Dict[B
     return scale_factors, idx
 
 
-def _ping_beam_subrecord(ping_header: PingHeader, buffer: str, scale_factors: Dict[BeamSubRecordTypes, numpy.ndarray], subrecord_size: int, subrecord_id: int, idx: int) -> Tuple[numpy.ndarray, int, int, int]:
+def _ping_beam_subrecord(
+    ping_header: PingHeader,
+    buffer: str,
+    scale_factors: Dict[BeamSubRecordTypes, numpy.ndarray],
+    subrecord_size: int,
+    subrecord_id: int,
+    idx: int,
+) -> Tuple[numpy.ndarray, int, int, int]:
     """Small util for reading and converting a ping beam subrecord."""
     size = subrecord_size // ping_header.num_beams
     sub_rec_type = BeamSubRecordTypes(subrecord_id)
@@ -561,7 +612,9 @@ def _ping_beam_subrecord(ping_header: PingHeader, buffer: str, scale_factors: Di
     return data, subrecord_id, subrecord_size, idx
 
 
-def read_bathymetry_ping(stream, data_size, flag, scale_factors=None) -> Tuple[PingHeader, Dict[BeamSubRecordTypes, numpy.ndarray], pandas.DataFrame]:
+def read_bathymetry_ping(
+    stream, data_size, flag, scale_factors=None
+) -> Tuple[PingHeader, Dict[BeamSubRecordTypes, numpy.ndarray], pandas.DataFrame]:
     """Read and digest a bathymetry ping record."""
     idx = 0
     # blob = numpy.fromfile(stream, f"S{data_size}", count=1)[0]
@@ -645,16 +698,15 @@ def read_bathymetry_ping(stream, data_size, flag, scale_factors=None) -> Tuple[P
     return ping_header, scale_factors, dataframe
 
 
-def read_history(stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool):
+def read_history(
+    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+):
     """Read a history record."""
     blob = stream.read(data_size)
     idx = 0
 
     time = numpy.frombuffer(blob, ">i4", count=2)
-    timestamp = create_datetime(
-        time[0],
-        time[1]
-    )
+    timestamp = create_datetime(time[0], time[1])
     idx += 8
 
     size = numpy.frombuffer(blob[idx:], ">i2", count=1)[0]

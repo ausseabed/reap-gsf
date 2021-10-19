@@ -11,6 +11,7 @@ class WGS84Coefficients(Enum):
         * lat_m_sf = A - B * cos(2 * lat) + C  * cos(4 * lat) - D * cos(6 * lat)
         * lon_m_sf = E * cos(lat) - F * cos(3 * lat) + G * cos(5 * lat)
     """
+
     A = 111132.92
     B = 559.82
     C = 1.175

@@ -1,5 +1,6 @@
 import datetime  # type: ignore
-from typing import List, Union, Dict
+from typing import List, Union
+
 import attr
 import pandas  # type: ignore
 
@@ -18,7 +19,9 @@ class Record:
     def read(self, stream, *args):
         """Read the data associated with this record."""
         stream.seek(self.index)
-        data = self.record_type.func_mapper(stream, self.data_size, self.checksum_flag, *args)
+        data = self.record_type.func_mapper(
+            stream, self.data_size, self.checksum_flag, *args
+        )
         return data
 
 
@@ -39,7 +42,7 @@ class FileRecordIndex:
             record_type=self.record_type,
             data_size=self.data_size[index],
             checksum_flag=self.checksum_flag[index],
-            index=self.indices[index]
+            index=self.indices[index],
         )
         return result
 
