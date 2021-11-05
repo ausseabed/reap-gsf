@@ -59,8 +59,8 @@ def file_info(
     type in .enums.RecordTypes.
     The indexes can then be used to quickly traverse through the file.
     """
+    # we could be dealing with a gsf stored within a zipfile, or as a cloud object
     if file_size is None:
-        # we could be dealing with a gsf stored within a zipfile
         fname = Path(stream.name)
         fsize = fname.stat().st_size
     else:
@@ -123,7 +123,6 @@ def read_header(
     idx = 0
 
     if checksum_flag:
-        # _ = numpy.fromfile(stream, ">i4", count=1)[0]
         _ = numpy.frombuffer(blob, ">i4", count=1)[0]
         idx += 4
 
@@ -152,7 +151,7 @@ def _proc_param_parser(value: Union[str, datetime.datetime]) -> Any:
         if "." in value:  # assumption on period being a decimal point
             parsed = numpy.array(array, dtype="float").tolist()
         else:
-            # should be dealing with an array of "UNKNWN" or "UNKNOWN"
+            # could be dealing with an array of "UNKNWN" or "UNKNOWN"
             parsed = ["unknown"] * len(array)
     elif "." in value:  # assumption on period being a decimal point
         parsed = float(value)
@@ -232,11 +231,7 @@ def read_attitude(
     stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool
 ) -> pandas.DataFrame:
     """Read an attitude record."""
-    # using stream.readline() would stop at the first new line
-    # using stream.readlines() can read more than data_size
-    # blob = numpy.fromfile(stream, f"S{data_size}", count=1)[0]
     blob = stream.read(data_size)
-    # blob = numpy.fromfile(stream, f"V{data_size}", count=1)[0]
     idx = 0
 
     if checksum_flag:
@@ -317,13 +312,11 @@ def read_svp(
         ]
     )
 
-    # blob = numpy.fromfile(stream, dtype, count=1)
     blob = numpy.frombuffer(buffer, dtype, count=1)
     num_points = blob["num_points"][0]
 
     idx += 28
 
-    # svp = numpy.fromfile(stream, ">u4", count=2 * num_points) / 100
     svp = numpy.frombuffer(buffer[idx:], ">u4", count=2 * num_points) / 100
     svp = svp.reshape((num_points, 2))
 
@@ -374,7 +367,6 @@ def read_swath_bathymetry_summary(
         ]
     )
 
-    # blob = numpy.fromfile(stream, dtype, count=1)
     blob = numpy.frombuffer(buffer, dtype, count=1)
 
     data = {
@@ -411,7 +403,6 @@ def read_comment(
             ("comment_length", ">i4"),
         ]
     )
-    # blob = stream.readline(data_size)
     blob = stream.read(data_size)
     decoded = numpy.frombuffer(blob, dtype, count=1)
 
@@ -510,11 +501,6 @@ def _ping_dataframe(
 ) -> pandas.DataFrame:
     """Construct the dataframe for the given ping."""
     # convert beam arrays to point cloud structure (i.e. generate coords for every beam)
-    # longitude, latitude = _beams_longitude_latitude(
-    #     ping_header,
-    #     subrecords[BeamSubRecordTypes.ALONG_TRACK].astype("float64"),
-    #     subrecords[BeamSubRecordTypes.ACROSS_TRACK].astype("float64")
-    # )
     longitude, latitude = _beams_longitude_latitude(
         ping_header,
         subrecords[BeamSubRecordTypes.ALONG_TRACK],
@@ -530,20 +516,16 @@ def _ping_dataframe(
         "longitude",
         "latitude",
         "num_beams",
-        "center_beam",
         "reserved",
     ]
     for key, value in attr.asdict(ping_header).items():
         if key in ignore:
-            # we don't want to overwrite with a constant for this ping
             continue
         dataframe[key] = value
 
     # float32 conversion;
     # it seems all the attributes have had some level of truncation applied
     # thus losing some level of precision
-    # convert all floats, save for the coordinates, to float32
-    # also convert whatever columns that are int64's to int16
 
     ignore = ["longitude", "latitude"]
     for column in dataframe.columns:
@@ -551,8 +533,6 @@ def _ping_dataframe(
             continue
         if "float" in dataframe.dtypes[column].name:
             dataframe[column] = dataframe[column].values.astype("float32")
-        if "int" in dataframe.dtypes[column].name:
-            dataframe[column] = dataframe[column].values.astype("int16")
 
     return dataframe
 
@@ -595,13 +575,6 @@ def _ping_beam_subrecord(
 
     data = sub_rec_blob / scale - offset
 
-    # store as float64 only when really required
-    # (we'll arbitrarily use 1_000_000 as the defining limit)
-    # most of the data has been truncated or scaled and stored as int's so
-    # some level of precision has already been lost
-    # if scale < 1_000_000:
-    #     data = data.astype("float32")
-
     subrecord_hdr = numpy.frombuffer(buffer[idx:], ">i4", count=1)[0]
     idx = idx + 4
 
@@ -616,7 +589,6 @@ def read_bathymetry_ping(
 ) -> Tuple[PingHeader, Dict[BeamSubRecordTypes, numpy.ndarray], pandas.DataFrame]:
     """Read and digest a bathymetry ping record."""
     idx = 0
-    # blob = numpy.fromfile(stream, f"S{data_size}", count=1)[0]
     blob = stream.read(data_size)
 
     dtype = numpy.dtype(

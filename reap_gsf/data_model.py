@@ -72,6 +72,9 @@ class SwathBathymetryPing:
             # some pings don't have scale factors and rely on a previous ping
             ping_header, scale_factors, df = rec.read(stream, scale_factors)
 
+            # this isn't the most efficient way
+            # we could pre-allocate the entire array, but i can't be certain that
+            # each ping has the same number of beams
             ping_dataframe = ping_dataframe.append(df, ignore_index=True)
 
         ping_dataframe.reset_index(drop=True, inplace=True)
