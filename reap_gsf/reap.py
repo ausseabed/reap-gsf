@@ -530,7 +530,7 @@ def _ping_dataframe(
     query = (dataframe.ping_flags == 0) | (dataframe.beam_flags == 0)
     idx = dataframe[query].across_track.abs().argmin()
     dataframe["centre_beam"] = False
-    dataframe.iloc[idx].centre_beam = True
+    dataframe.loc[idx, "centre_beam"] = True
 
     # beam number
     dataframe["beam_number"] = numpy.arange(ping_header.num_beams).astype("uint16")
