@@ -2,6 +2,7 @@ import datetime  # type: ignore
 from typing import List, Union
 
 import attr
+import numpy
 import pandas  # type: ignore
 
 from .enums import RecordTypes
@@ -66,7 +67,23 @@ class SwathBathymetryPing:
     def from_records(cls, file_record, stream):
         """Constructor for SwathBathymetryPing"""
         rec = file_record.record(0)
-        ping_header, scale_factors, ping_dataframe = rec.read(stream)
+        ping_header, scale_factors, df = rec.read(stream)
+
+        # allocating the full dataframe upfront is an attempt to reduce the
+        # memory footprint. the append method allocates a whole new copy
+        nrows = file_record.record_count * ping_header.num_beams
+        ping_dataframe = pandas.DataFrame(
+            {
+                column: numpy.empty((nrows), dtype=df[column].dtype)
+                for column in df.columns
+            }
+        )
+
+        slices = [
+            slice(start, start + ping_header.num_beams)
+            for start in numpy.arange(0, nrows, ping_header.num_beams)
+        ]
+        ping_dataframe[slices[0]] = df
 
         for i in range(1, file_record.record_count):
             rec = file_record.record(i)
@@ -77,9 +94,11 @@ class SwathBathymetryPing:
             # this isn't the most efficient way
             # we could pre-allocate the entire array, but i can't be certain that
             # each ping has the same number of beams
-            ping_dataframe = ping_dataframe.append(df, ignore_index=True)
+            # ping_dataframe = ping_dataframe.append(df, ignore_index=True)
 
-        ping_dataframe.reset_index(drop=True, inplace=True)
+            ping_dataframe[slices[i]] = df
+
+        # ping_dataframe.reset_index(drop=True, inplace=True)
 
         return cls(file_record, ping_dataframe)
 
