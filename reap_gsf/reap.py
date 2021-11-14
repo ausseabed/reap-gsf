@@ -517,11 +517,21 @@ def _ping_dataframe(
         "latitude",
         "num_beams",
         "reserved",
+        "center_beam",
     ]
     for key, value in attr.asdict(ping_header).items():
         if key in ignore:
             continue
         dataframe[key] = value
+
+    # most perpendicular beam
+    query = (dataframe.ping_flags == 0) | (dataframe.beam_flags == 0)
+    idx = dataframe[query].across_track.abs().argmin()
+    dataframe["centre_beam"] = False
+    dataframe.iloc[idx].centre_beam = True
+
+    # beam number
+    dataframe["beam_number"] = numpy.arange(ping_header.num_beams).astype("uint16")
 
     # float32 conversion;
     # it seems all the attributes have had some level of truncation applied
