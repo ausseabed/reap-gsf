@@ -15,6 +15,7 @@ class Record:
     data_size: int = attr.ib()
     checksum_flag: bool = attr.ib()
     index: int = attr.ib()
+    record_index: int = attr.ib()
 
     def read(self, stream, *args):
         """Read the data associated with this record."""
@@ -43,6 +44,7 @@ class FileRecordIndex:
             data_size=self.data_size[index],
             checksum_flag=self.checksum_flag[index],
             index=self.indices[index],
+            record_index=index,
         )
         return result
 
