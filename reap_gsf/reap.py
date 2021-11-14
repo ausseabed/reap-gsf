@@ -522,6 +522,8 @@ def _ping_dataframe(
     for key, value in attr.asdict(ping_header).items():
         if key in ignore:
             continue
+        if key == "timestamp":
+            value = value.replace(tzinfo=None)
         dataframe[key] = value
 
     # most perpendicular beam
