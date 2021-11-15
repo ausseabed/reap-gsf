@@ -528,7 +528,7 @@ def _ping_dataframe(
 
     # most perpendicular beam
     query = (dataframe.ping_flags == 0) | (dataframe.beam_flags == 0)
-    idx = dataframe[query].across_track.abs().argmin()
+    idx = dataframe[query].across_track.abs().idxmin()
     dataframe["centre_beam"] = False
     dataframe.loc[idx, "centre_beam"] = True
 
