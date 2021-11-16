@@ -527,10 +527,14 @@ def _ping_dataframe(
         dataframe[key] = value
 
     # most perpendicular beam
-    query = (dataframe.ping_flags == 0) | (dataframe.beam_flags == 0)
-    idx = dataframe[query].across_track.abs().idxmin()
     dataframe["centre_beam"] = False
-    dataframe.loc[idx, "centre_beam"] = True
+    if ping_header.ping_flags == 0:
+        query = dataframe.beam_flags == 0
+        subset = dataframe[query]
+        if subset.shape[0]:
+            # require suitable beams from this ping to determine the centre beam
+            idx = subset.across_track.abs().idxmin()
+            dataframe.loc[idx, "centre_beam"] = True
 
     # beam number
     dataframe["beam_number"] = numpy.arange(ping_header.num_beams).astype("uint16")
