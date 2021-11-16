@@ -552,6 +552,7 @@ def _ping_dataframe(
 
     dataframe["ping_flags"] = dataframe["ping_flags"].values.astype("uint8")
     dataframe["beam_flags"] = dataframe["beam_flags"].values.astype("uint8")
+    dataframe["centre_beam"] = dataframe["centre_beam"].values.astype("uint8")
 
     return dataframe
 
