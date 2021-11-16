@@ -550,6 +550,9 @@ def _ping_dataframe(
         if "float" in dataframe.dtypes[column].name:
             dataframe[column] = dataframe[column].values.astype("float32")
 
+    dataframe["ping_flags"] = dataframe["ping_flags"].values.astype("uint8")
+    dataframe["beam_flags"] = dataframe["beam_flags"].values.astype("uint8")
+
     return dataframe
 
 
