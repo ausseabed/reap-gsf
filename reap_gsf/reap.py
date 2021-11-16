@@ -726,3 +726,31 @@ def read_history(
     history = History(timestamp, machine_name, operator_name, command, comment)
 
     return history
+
+
+def dependent_pings(
+    stream: Union[io.BufferedReader, io.BytesIO], file_record: FileRecordIndex
+) -> List[Tuple[bool, int]]:
+    """
+    Generate a list of tuple's indicating whether a SwathBathymetryPing record
+    depends on a prior SwathBathymetryPing record. This is useful for
+    paralising the read of bathymetry pings, where scale factors may not be
+    present in some records.
+    """
+    results = []
+    for i in range(file_record.record_count):
+        record = file_record.record(i)
+        stream.seek(record.index)
+        buffer = stream.read(60)
+        subhdr = numpy.frombuffer(buffer[56:], ">i4", count=1)[0]
+        subid = (subhdr & 0xFF000000) >> 24
+
+        if subid == 100:
+            dep_id = i
+            dep = False
+        else:
+            dep = True
+
+        results.append((dep, dep_id))
+
+    return results
