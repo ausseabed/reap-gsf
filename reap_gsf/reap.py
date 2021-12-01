@@ -672,7 +672,7 @@ def read_bathymetry_ping(
 
     # beam array subrecords
     subrecords = {}
-    while subrecord_id <= MAX_BEAM_SUBRECORD_ID:
+    while subrecord_id <= MAX_BEAM_SUBRECORD_ID and subrecord_id > 0:
         data, new_subrecord_id, subrecord_size, idx = _ping_beam_subrecord(
             ping_header, blob, scale_factors, subrecord_size, subrecord_id, idx
         )
