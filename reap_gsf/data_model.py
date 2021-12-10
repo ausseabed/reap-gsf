@@ -8,6 +8,28 @@ import pandas  # type: ignore
 from .enums import RecordTypes
 
 
+def _dependent_pings(stream, file_record, idx=slice(None)):
+    """
+    Return a list of dependent pings. This is to aid which pings require scale
+    factors from a previous ping.
+    """
+    results = []
+    for i in range(file_record.record_count):
+        record = file_record.record(i)
+        stream.seek(record.index)
+        buffer = stream.read(60)
+        subhdr = numpy.frombuffer(buffer[56:], ">i4", count=1)[0]
+        subid = (subhdr & 0xFF000000) >> 24
+        if subid == 100:
+            dep_id = i
+            dep = False
+        else:
+            dep = True
+        results.append((dep, dep_id))
+
+    return results[idx]
+
+
 @attr.s()
 class Record:
     """Instance of a GSF high level record as referenced in RecordTypes."""
@@ -64,14 +86,37 @@ class SwathBathymetryPing:
     # sensor_dataframe: pandas.DataFrame = attr.ib()
 
     @classmethod
-    def from_records(cls, file_record, stream):
-        """Constructor for SwathBathymetryPing"""
-        rec = file_record.record(0)
-        ping_header, scale_factors, df = rec.read(stream)
+    def from_records(cls, file_record, stream, idx=slice(None)):
+        """Constructor for SwathBathymetryPing. Not supporting idx.step > 1"""
+        # TODO testing
+        # retrieve the full ping, and a subset.
+        # result = full_df[idx.start*nbeams:idx.end*nbeams].reset_index(drop=True) - subs
+        # (result.sum() == 0).all() (timestamp won't work, but should be 0 days 00:00:00)
+        # ~(result.all()).all() should do the jo
+        record_index = list(range(file_record.record_count))
+        record_ids = record_index[idx]
+
+        # TODO sort out record dependencies (required for scale factors)
+        dependent_pings = _dependent_pings(stream, file_record, idx)
+
+        # get the first record of interest
+        # rec = file_record.record(0)
+        if dependent_pings[0][0]:
+            rec = file_record.record(dependent_pings[0][1])
+            ping_header, scale_factors, df = rec.read(stream)
+
+            rec = file_record.record(record_ids[0])
+            ping_header, scale_factors, df = rec.read(stream, scale_factors)
+        else:
+            rec = file_record.record(record_ids[0])
+            ping_header, scale_factors, df = rec.read(stream)
+
+        # TODO redo nrows based on slice
 
         # allocating the full dataframe upfront is an attempt to reduce the
         # memory footprint. the append method allocates a whole new copy
-        nrows = file_record.record_count * ping_header.num_beams
+        # nrows = file_record.record_count * ping_header.num_beams
+        nrows = len(record_ids) * ping_header.num_beams
         ping_dataframe = pandas.DataFrame(
             {
                 column: numpy.empty((nrows), dtype=df[column].dtype)
@@ -85,8 +130,9 @@ class SwathBathymetryPing:
         ]
         ping_dataframe[slices[0]] = df
 
-        for i in range(1, file_record.record_count):
-            rec = file_record.record(i)
+        # for i in range(1, file_record.record_count):
+        for i, rec_id in enumerate(record_ids[1:]):
+            rec = file_record.record(rec_id)
 
             # some pings don't have scale factors and rely on a previous ping
             ping_header, scale_factors, df = rec.read(stream, scale_factors)
@@ -96,7 +142,7 @@ class SwathBathymetryPing:
             # each ping has the same number of beams
             # ping_dataframe = ping_dataframe.append(df, ignore_index=True)
 
-            ping_dataframe[slices[i]] = df
+            ping_dataframe[slices[i + 1]] = df
 
         # ping_dataframe.reset_index(drop=True, inplace=True)
 
