@@ -96,11 +96,12 @@ class SwathBathymetryPing:
         record_index = list(range(file_record.record_count))
         record_ids = record_index[idx]
 
-        # TODO sort out record dependencies (required for scale factors)
+        # record dependencies (required for scale factors)
+        # only need to resolve the first record as subsequent records are
+        # provided with scale_factors
         dependent_pings = _dependent_pings(stream, file_record, idx)
 
         # get the first record of interest
-        # rec = file_record.record(0)
         if dependent_pings[0][0]:
             rec = file_record.record(dependent_pings[0][1])
             ping_header, scale_factors, df = rec.read(stream)
@@ -110,8 +111,6 @@ class SwathBathymetryPing:
         else:
             rec = file_record.record(record_ids[0])
             ping_header, scale_factors, df = rec.read(stream)
-
-        # TODO redo nrows based on slice
 
         # allocating the full dataframe upfront is an attempt to reduce the
         # memory footprint. the append method allocates a whole new copy
@@ -130,21 +129,13 @@ class SwathBathymetryPing:
         ]
         ping_dataframe[slices[0]] = df
 
-        # for i in range(1, file_record.record_count):
         for i, rec_id in enumerate(record_ids[1:]):
             rec = file_record.record(rec_id)
 
             # some pings don't have scale factors and rely on a previous ping
             ping_header, scale_factors, df = rec.read(stream, scale_factors)
 
-            # this isn't the most efficient way
-            # we could pre-allocate the entire array, but i can't be certain that
-            # each ping has the same number of beams
-            # ping_dataframe = ping_dataframe.append(df, ignore_index=True)
-
             ping_dataframe[slices[i + 1]] = df
-
-        # ping_dataframe.reset_index(drop=True, inplace=True)
 
         return cls(file_record, ping_dataframe)
 
