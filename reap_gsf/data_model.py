@@ -231,7 +231,7 @@ class PingTimestampBounds:
     def from_dict(cls, bounds):
         """Constructor for PingTimestampBounds."""
         first_ping = bounds.get("timestamp_first_ping", None)
-        last_ping = bounds.get("timestamp_first_ping", None)
+        last_ping = bounds.get("timestamp_last_ping", None)
 
         return cls(first_ping, last_ping)
 
