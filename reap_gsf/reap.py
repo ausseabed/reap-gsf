@@ -344,6 +344,14 @@ def read_svp(
         }
     )
 
+    dataframe.rename(
+        columns={
+            "longitude": "X",
+            "latitude": "Y",
+        },
+        inplace=True,
+    )  # using general terms
+
     return dataframe
 
 
@@ -553,6 +561,14 @@ def _ping_dataframe(
     dataframe["ping_flags"] = dataframe["ping_flags"].values.astype("uint8")
     dataframe["beam_flags"] = dataframe["beam_flags"].values.astype("uint8")
     dataframe["centre_beam"] = dataframe["centre_beam"].values.astype("uint8")
+
+    dataframe.rename(
+        columns={
+            "longitude": "X",
+            "latitude": "Y",
+        },
+        inplace=True,
+    )  # using general terms
 
     return dataframe
 
