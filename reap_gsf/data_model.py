@@ -44,7 +44,7 @@ def _total_ping_beam_count(stream, file_record, idx=slice(None)):
         ping_hdr = record.read(stream, None, True)  # read header only
         results.append(ping_hdr.num_beams)
 
-    return numpy.sum(results[idx])
+    return numpy.sum(results[idx]), results[idx]
 
 
 @attr.s()
@@ -133,7 +133,7 @@ class SwathBathymetryPing:
         # memory footprint. the append method allocates a whole new copy
         # nrows = file_record.record_count * ping_header.num_beams
         # nrows = len(record_ids) * ping_header.num_beams
-        nrows = _total_ping_beam_count(stream, file_record, idx)
+        nrows, n_beams = _total_ping_beam_count(stream, file_record, idx)
         ping_dataframe = pandas.DataFrame(
             {
                 column: numpy.empty((nrows), dtype=df[column].dtype)
@@ -141,10 +141,17 @@ class SwathBathymetryPing:
             }
         )
 
-        slices = [
-            slice(start, start + ping_header.num_beams)
-            for start in numpy.arange(0, nrows, ping_header.num_beams)
-        ]
+        # slices = [
+        #     slice(start, start + ping_header.num_beams)
+        #     for start in numpy.arange(0, nrows, ping_header.num_beams)
+        # ]
+        slices = []
+        start = 0
+        for nbeams in n_beams:
+            stop = start + nbeams
+            slices.append(slice(start, stop))
+            start = stop
+
         ping_dataframe[slices[0]] = df
 
         for i, rec_id in enumerate(record_ids[1:]):
