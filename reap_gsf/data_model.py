@@ -30,6 +30,23 @@ def _dependent_pings(stream, file_record, idx=slice(None)):
     return results[idx]
 
 
+def _total_ping_beam_count(stream, file_record, idx=slice(None)):
+    """
+    Return a the total ping beam count.
+    The basis for this is that (despite what we were told), the beam count
+    can differ between pings. So in order to read slices and insert slices
+    into a pre-allocated array, we now need to know the beam count for every
+    ping within the slice.
+    """
+    results = []
+    for i in range(file_record.record_count):
+        record = file_record.record(i)
+        ping_hdr = record.read(stream, None, True)  # read header only
+        results.append(ping_hdr.num_beams)
+
+    return numpy.sum(results[idx])
+
+
 @attr.s()
 class Record:
     """Instance of a GSF high level record as referenced in RecordTypes."""
@@ -115,7 +132,8 @@ class SwathBathymetryPing:
         # allocating the full dataframe upfront is an attempt to reduce the
         # memory footprint. the append method allocates a whole new copy
         # nrows = file_record.record_count * ping_header.num_beams
-        nrows = len(record_ids) * ping_header.num_beams
+        # nrows = len(record_ids) * ping_header.num_beams
+        nrows = _total_ping_beam_count(stream, file_record, idx)
         ping_dataframe = pandas.DataFrame(
             {
                 column: numpy.empty((nrows), dtype=df[column].dtype)

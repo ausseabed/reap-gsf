@@ -621,7 +621,11 @@ def _ping_beam_subrecord(
 
 
 def read_bathymetry_ping(
-    stream, data_size, flag, scale_factors=None
+    stream,
+    data_size,
+    flag,
+    scale_factors=None,
+    header_only=False,
 ) -> Tuple[PingHeader, Dict[BeamSubRecordTypes, numpy.ndarray], pandas.DataFrame]:
     """Read and digest a bathymetry ping record."""
     idx = 0
@@ -652,6 +656,9 @@ def read_bathymetry_ping(
     )
 
     ping_header = _correct_ping_header(numpy.frombuffer(blob, dtype=dtype, count=1))
+
+    if header_only:
+        return ping_header
 
     idx += 56  # includes 2 bytes of spare space
 
