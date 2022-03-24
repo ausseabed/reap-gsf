@@ -566,6 +566,7 @@ def _ping_dataframe(
         columns={
             "longitude": "X",
             "latitude": "Y",
+            "depth": "Z",
         },
         inplace=True,
     )  # using general terms
