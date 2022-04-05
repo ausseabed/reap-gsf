@@ -47,6 +47,92 @@ def _total_ping_beam_count(stream, file_record, idx=slice(None)):
     return numpy.sum(results[idx]), results[idx]
 
 
+def _ping_dataframe_base(nrows):
+    """
+    A temporary workaround for the inconsistent schemas that can occur
+    between pings.
+    For the ARDC project, we're now going to define the attributes to
+    be used. If a ping has an additional attribute, it will be ignored, if
+    a ping is missing an attribute from the pre-defined set, then null
+    values will be used to populate the attribute for the ping.
+    Does present a slight disconnect with datatypes being inferred when
+    reading a record. Ideally want to avoid any casting. Also requires
+    expert input on what the datatypes should be, and the fill value.
+    Moving to reap_gsf/enums.py might be better.
+    """
+    nan = numpy.nan
+    dtypes = {
+        "X": "float64",
+        "Y": "float64",
+        "Z": "float32",
+        "across_track": "float32",
+        "along_track": "float32",
+        "beam_angle": "float32",
+        "beam_angle_forward": "float32",
+        "beam_flags": "uint8",
+        "beam_number": "uint16",
+        "centre_beam": "uint8",
+        "course": "float32",
+        "depth_corrector": "float32",
+        "gps_tide_corrector": "float32",
+        "heading": "float32",
+        "heave": "float32",
+        "height": "float32",
+        "horizontal_error": "float32",
+        # "mean_cal_amplitude": "float32",
+        "ping_flags": "uint8",
+        "pitch": "float32",
+        "roll": "float32",
+        "sector_number": "float32",
+        "separation": "float32",
+        "speed": "float32",
+        "tide_corrector": "float32",
+        "timestamp": "datetime64[ns]",
+        "travel_time": "float32",
+        "vertical_error": "float32",
+    }
+
+    fill_value = {
+        "X": nan,  # we're in trouble if this is missing
+        "Y": nan,  # calculated, so this will be overwritten
+        "Z": nan,  # calculated, so this will be overwritten
+        "across_track": nan,
+        "along_track": nan,
+        "beam_angle": nan,
+        "beam_angle_forward": nan,
+        "beam_flags": 255,
+        "beam_number": 0,  # calculated, so this will be overwritten
+        "centre_beam": 0,  # calculated, so this will be overwritten
+        "course": nan,
+        "depth_corrector": nan,
+        "gps_tide_corrector": nan,
+        "heading": nan,
+        "heave": nan,
+        "height": nan,
+        "horizontal_error": nan,
+        # "mean_cal_amplitude": nan,
+        "ping_flags": 255,
+        "pitch": nan,
+        "roll": nan,
+        "sector_number": nan,
+        "separation": nan,
+        "speed": nan,
+        "tide_corrector": nan,
+        "timestamp": 0,
+        "travel_time": nan,
+        "vertical_error": nan,
+    }
+
+    ping_dataframe = pandas.DataFrame(
+        {
+            column: numpy.full((nrows), fill_value[column], dtype=dtypes[column])
+            for column in dtypes
+        }
+    )
+
+    return ping_dataframe
+
+
 @attr.s()
 class Record:
     """Instance of a GSF high level record as referenced in RecordTypes."""
@@ -134,12 +220,13 @@ class SwathBathymetryPing:
         # nrows = file_record.record_count * ping_header.num_beams
         # nrows = len(record_ids) * ping_header.num_beams
         nrows, n_beams = _total_ping_beam_count(stream, file_record, idx)
-        ping_dataframe = pandas.DataFrame(
-            {
-                column: numpy.empty((nrows), dtype=df[column].dtype)
-                for column in df.columns
-            }
-        )
+        # ping_dataframe = pandas.DataFrame(
+        #     {
+        #         column: numpy.empty((nrows), dtype=df[column].dtype)
+        #         for column in df.columns
+        #     }
+        # )
+        ping_dataframe = _ping_dataframe_base(nrows)
 
         # slices = [
         #     slice(start, start + ping_header.num_beams)
@@ -152,7 +239,14 @@ class SwathBathymetryPing:
             slices.append(slice(start, stop))
             start = stop
 
-        ping_dataframe[slices[0]] = df
+        # ping_dataframe[slices[0]] = df
+        # issues with pandas 1.1.2 and dataframe slicing
+        # datatypes are being promoted to higher levels
+        cols = [col for col in ping_dataframe.columns if col in df.columns]
+        for col in cols:
+            ping_dataframe.loc[slices[0].start : slices[0].stop - 1, col] = df[
+                col
+            ].values
 
         for i, rec_id in enumerate(record_ids[1:]):
             rec = file_record.record(rec_id)
@@ -160,7 +254,14 @@ class SwathBathymetryPing:
             # some pings don't have scale factors and rely on a previous ping
             ping_header, scale_factors, df = rec.read(stream, scale_factors)
 
-            ping_dataframe[slices[i + 1]] = df
+            # ping_dataframe[slices[i + 1]] = df
+            # issues with pandas 1.1.2 and dataframe slicing
+            # datatypes are being promoted to higher levels
+            cols = [col for col in ping_dataframe.columns if col in df.columns]
+            for col in cols:
+                ping_dataframe.loc[
+                    slices[i + 1].start : slices[i + 1].stop - 1, col
+                ] = df[col].values
 
         return cls(file_record, ping_dataframe)
 
