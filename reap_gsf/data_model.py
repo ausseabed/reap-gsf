@@ -70,6 +70,7 @@ def _ping_dataframe_base(nrows):
         "beam_angle": "float32",
         "beam_angle_forward": "float32",
         "beam_flags": "uint8",
+        "ping_number": "uint64",
         "beam_number": "uint16",
         "centre_beam": "uint8",
         "course": "float32",
@@ -83,7 +84,7 @@ def _ping_dataframe_base(nrows):
         "ping_flags": "uint8",
         "pitch": "float32",
         "roll": "float32",
-        "sector_number": "float32",
+        "sector_number": "uint8",
         "separation": "float32",
         "speed": "float32",
         "tide_corrector": "float32",
@@ -101,6 +102,7 @@ def _ping_dataframe_base(nrows):
         "beam_angle": nan,
         "beam_angle_forward": nan,
         "beam_flags": 255,
+        "ping_number": 0,  # calculated, so this will be overwritten
         "beam_number": 0,  # calculated, so this will be overwritten
         "centre_beam": 0,  # calculated, so this will be overwritten
         "course": nan,
@@ -114,7 +116,7 @@ def _ping_dataframe_base(nrows):
         "ping_flags": 255,
         "pitch": nan,
         "roll": nan,
-        "sector_number": nan,
+        "sector_number": 0,
         "separation": nan,
         "speed": nan,
         "tide_corrector": nan,
@@ -211,9 +213,11 @@ class SwathBathymetryPing:
 
             rec = file_record.record(record_ids[0])
             ping_header, scale_factors, df = rec.read(stream, scale_factors)
+            df["ping_number"] = rec.record_index
         else:
             rec = file_record.record(record_ids[0])
             ping_header, scale_factors, df = rec.read(stream)
+            df["ping_number"] = rec.record_index
 
         # allocating the full dataframe upfront is an attempt to reduce the
         # memory footprint. the append method allocates a whole new copy
@@ -253,6 +257,7 @@ class SwathBathymetryPing:
 
             # some pings don't have scale factors and rely on a previous ping
             ping_header, scale_factors, df = rec.read(stream, scale_factors)
+            df["ping_number"] = rec.record_index
 
             # ping_dataframe[slices[i + 1]] = df
             # issues with pandas 1.1.2 and dataframe slicing
