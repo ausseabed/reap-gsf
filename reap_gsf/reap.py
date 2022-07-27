@@ -108,7 +108,7 @@ def read_record_info(
 ) -> Tuple[int, int, bool]:
     """Return the header information for the current record."""
     blob = stream.read(8)
-    data_size = numpy.frombuffer(blob, ">u4", count=1)[0]
+    data_size = int(numpy.frombuffer(blob, ">u4", count=1)[0])
     record_identifier = numpy.frombuffer(blob[4:], ">i4", count=1)[0]
     checksum_flag = bool(record_identifier & CHECKSUM_BIT)
 
