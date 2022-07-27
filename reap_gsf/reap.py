@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import attr
 import numpy
 import pandas
+import tiledb
 
 from .data_model import (
     Comment,
@@ -41,7 +42,9 @@ def create_datetime(seconds: int, nano_seconds: int) -> datetime.datetime:
     return timestamp
 
 
-def record_padding(stream: Union[io.BufferedReader, io.BytesIO]) -> numpy.ndarray:
+def record_padding(
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO]
+) -> numpy.ndarray:
     """
     GSF requires that all records are multiples of 4 bytes.
     Essentially reads enough bytes so the stream position for the
@@ -52,7 +55,8 @@ def record_padding(stream: Union[io.BufferedReader, io.BytesIO]) -> numpy.ndarra
 
 
 def file_info(
-    stream: Union[io.BufferedReader, io.BytesIO], file_size: Optional[int] = None
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    file_size: Optional[int] = None,
 ) -> List[FileRecordIndex]:
     """
     Returns a list of FileRecordIndex objects for each high level record
@@ -104,7 +108,7 @@ def file_info(
 
 
 def read_record_info(
-    stream: Union[io.BufferedReader, io.BytesIO]
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO]
 ) -> Tuple[int, int, bool]:
     """Return the header information for the current record."""
     blob = stream.read(8)
@@ -116,7 +120,9 @@ def read_record_info(
 
 
 def read_header(
-    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    data_size: int,
+    checksum_flag: bool,
 ) -> str:
     """Read the GSF header occuring at the start of the file."""
     blob = stream.read(data_size)
@@ -174,7 +180,9 @@ def _standardise_proc_param_keys(key: str) -> str:
 
 
 def read_processing_parameters(
-    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    data_size: int,
+    checksum_flag: bool,
 ) -> Dict[str, Any]:
     """
     Read the record containing the parameters used during the data
@@ -228,7 +236,9 @@ def read_processing_parameters(
 
 
 def read_attitude(
-    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, checksum_flag: bool
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    data_size: int,
+    checksum_flag: bool,
 ) -> pandas.DataFrame:
     """Read an attitude record."""
     blob = stream.read(data_size)
@@ -289,7 +299,9 @@ def read_attitude(
 
 
 def read_svp(
-    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    data_size: int,
+    flag: bool,
 ) -> pandas.DataFrame:
     """
     Read a sound velocity profile record.
@@ -356,7 +368,9 @@ def read_svp(
 
 
 def read_swath_bathymetry_summary(
-    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    data_size: int,
+    flag: bool,
 ) -> SwathBathymetrySummary:
     buffer = stream.read(data_size)
 
@@ -401,7 +415,9 @@ def read_swath_bathymetry_summary(
 
 
 def read_comment(
-    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    data_size: int,
+    flag: bool,
 ) -> Comment:
     """Read a comment record."""
     dtype = numpy.dtype(
@@ -714,7 +730,9 @@ def read_bathymetry_ping(
 
 
 def read_history(
-    stream: Union[io.BufferedReader, io.BytesIO], data_size: int, flag: bool
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    data_size: int,
+    flag: bool,
 ):
     """Read a history record."""
     blob = stream.read(data_size)
@@ -757,7 +775,8 @@ def read_history(
 
 
 def dependent_pings(
-    stream: Union[io.BufferedReader, io.BytesIO], file_record: FileRecordIndex
+    stream: Union[io.BufferedReader, io.BytesIO, tiledb.vfs.FileIO],
+    file_record: FileRecordIndex,
 ) -> List[Tuple[bool, int]]:
     """
     Generate a list of tuple's indicating whether a SwathBathymetryPing record
