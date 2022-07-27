@@ -65,8 +65,11 @@ def file_info(
     """
     # we could be dealing with a gsf stored within a zipfile, or as a cloud object
     if file_size is None:
-        fname = Path(stream.name)
-        fsize = fname.stat().st_size
+        if isinstance(stream, tiledb.vfs.FileIO):
+            fsize = stream._nbytes
+        else:
+            fname = Path(stream.name)
+            fsize = fname.stat().st_size
     else:
         fsize = file_size
 
